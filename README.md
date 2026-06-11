@@ -158,6 +158,7 @@ Now you can create custom lighting effects in the **Lighting Channel #** tabs.
 - [Connect Multiple Fans without a Corsair RGB Fan Hub](#connect-multiple-fans-without-a-corsair-rgb-fan-hub)
 - [Control Non-Addressable (Analog) RGB Strips](#control-non-addressable-analog-rgb-strips)
 - [Ambient Backlighting (LS100/LT100 Emulation)](#ambient-backlighting-ls100lt100-emulation)
+- [Backlight Smoothing Filter (Temporal Damping)](#backlight-smoothing-filter-temporal-damping)
 - [Dynamic Per-Channel Color Calibration (White Balance)](#dynamic-per-channel-color-calibration-white-balance)
 - [2D Matrix Mapping (1D to 2D Grid Mapping)](#2d-matrix-mapping-1d-to-2d-grid-mapping)
 - [Built-in Standby / Sleep Animation Autotoggle](#built-in-standby--sleep-animation-autotoggle)
@@ -218,8 +219,6 @@ Here is a simplified configuration example based on [CommanderPRO.ino](examples/
 ```C++
 #include <CorsairLightingProtocol.h>
 #include <FastLED.h>
-#include "SimpleFanController.h"
-#include "ThermistorTemperatureController.h"
 
 #define DATA_PIN_CHANNEL_1 2
 #define DATA_PIN_CHANNEL_2 3
@@ -440,6 +439,27 @@ void loop() {
 
 > [!NOTE]
 > Under LS100/LT100, iCUE restricts the LED brightness to a maximum of 50% for eye safety. The `CLP::fixIcueBrightness` utility scales the output back to 100% so you can utilize your LEDs' full brightness.
+
+## Backlight Smoothing Filter (Temporal Damping)
+When using ambient monitor backlighting (LS100/LT100 video synchronization), color changes on the screen can be extremely rapid, which can lead to harsh transitions or jittery lighting. The library provides a temporal smoothing filter that interpolates colors between the current state and the target state to make changes look soft and buttery.
+
+Add `CLP::applyTemporalSmoothing` in the update hook:
+
+```C++
+void setup() {
+    FastLED.addLeds<WS2812B, DATA_PIN, GRB>(leds, LED_COUNT);
+    ledController.addLEDs(0, leds, LED_COUNT);
+
+    ledController.onUpdateHook(0, []() {
+        // Fix iCUE brightness limit, apply gamma correction, and smooth transitions
+        CLP::fixIcueBrightness(&ledController, 0);
+        CLP::gammaCorrection(&ledController, 0);
+        
+        // Alpha factor: 1-255 (lower = slower/smoother, 255 = instant/disabled)
+        CLP::applyTemporalSmoothing(&ledController, 0, 128); 
+    });
+}
+```
 
 ## Dynamic Per-Channel Color Calibration (White Balance)
 If you have cheap generic LED strips connected to one channel and high-quality strips to another, you might notice that their white colors don't match (e.g., one looks too blue/cool and the other too red/warm). FastLED has global color correction, but using this library, you can calibrate the color balance (white balance) **per channel individually**.

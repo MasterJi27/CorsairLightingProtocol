@@ -93,9 +93,7 @@ bool SimpleFanController::updateFans() {
 	return false;
 }
 
-uint16_t SimpleFanController::getFanSpeed(uint8_t fan) {
-	return fanData[fan].speed;
-}
+uint16_t SimpleFanController::getFanSpeed(uint8_t fan) { return fanData[fan].speed; }
 
 void SimpleFanController::setFanSpeed(uint8_t fan, uint16_t speed) {
 	fanData[fan].speed = speed;
@@ -104,9 +102,7 @@ void SimpleFanController::setFanSpeed(uint8_t fan, uint16_t speed) {
 	triggerSave = true;
 }
 
-uint8_t SimpleFanController::getFanPower(uint8_t fan) {
-	return fanData[fan].power;
-}
+uint8_t SimpleFanController::getFanPower(uint8_t fan) { return fanData[fan].power; }
 
 void SimpleFanController::setFanPower(uint8_t fan, uint8_t percentage) {
 	fanData[fan].power = percentage;
@@ -122,17 +118,11 @@ void SimpleFanController::setFanCurve(uint8_t fan, uint8_t group, FanCurve& fanC
 	triggerSave = true;
 }
 
-void SimpleFanController::setFanExternalTemperature(uint8_t fan, uint16_t temp) {
-	externalTemp[fan] = temp;
-}
+void SimpleFanController::setFanExternalTemperature(uint8_t fan, uint16_t temp) { externalTemp[fan] = temp; }
 
-void SimpleFanController::setFanForce3PinMode(bool flag) {
-	force3PinMode = flag;
-}
+void SimpleFanController::setFanForce3PinMode(bool flag) { force3PinMode = flag; }
 
-FanDetectionType SimpleFanController::getFanDetectionType(uint8_t fan) {
-	return fanData[fan].detectionType;
-}
+FanDetectionType SimpleFanController::getFanDetectionType(uint8_t fan) { return fanData[fan].detectionType; }
 
 void SimpleFanController::setFanDetectionType(uint8_t fan, FanDetectionType type) {
 	if (fanData[fan].detectionType != type) {

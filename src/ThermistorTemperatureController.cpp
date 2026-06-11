@@ -50,14 +50,8 @@ bool ThermistorTemperatureController::isTemperatureSensorConnected(uint8_t tempe
 	return sensorPins[temperatureSensor] != 0;
 }
 
-uint16_t ThermistorTemperatureController::getVoltageRail12V() {
-	return 0;
-}
+uint16_t ThermistorTemperatureController::getVoltageRail12V() { return 0; }
 
-uint16_t ThermistorTemperatureController::getVoltageRail5V() {
-	return 0;
-}
+uint16_t ThermistorTemperatureController::getVoltageRail5V() { return 0; }
 
-uint16_t ThermistorTemperatureController::getVoltageRail3V3() {
-	return 0;
-}
+uint16_t ThermistorTemperatureController::getVoltageRail3V3() { return 0; }

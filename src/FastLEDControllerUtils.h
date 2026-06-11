@@ -147,4 +147,14 @@ void mapToMatrix(FastLEDController* controller, uint8_t channelIndex, uint8_t wi
  */
 void enableStandbyAnimation(FastLEDController* controller, uint8_t channelIndex, clp_standby_mode_t mode,
 							const CRGB& color = CRGB::White, uint8_t speed = 20);
+
+/**
+ * Applies temporal smoothing (damping) to the colors of a specific LED channel to prevent harsh flicker
+ * and create smooth transitions (e.g. for ambient video-syncing).
+ *
+ * @param controller the FastLEDController controlling the LEDs
+ * @param channelIndex the index of the channel
+ * @param alpha the smoothing factor (1 - 255). Lower values = slower/smoother, 255 = instant.
+ */
+void applyTemporalSmoothing(FastLEDController* controller, uint8_t channelIndex, uint8_t alpha = 128);
 }  // namespace CLP

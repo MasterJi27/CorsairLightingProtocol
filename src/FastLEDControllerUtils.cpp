@@ -280,3 +280,37 @@ void CLP::enableStandbyAnimation(FastLEDController* controller, uint8_t channelI
 		}
 	}
 }
+
+void CLP::applyTemporalSmoothing(FastLEDController* controller, uint8_t channelIndex, uint8_t alpha) {
+	auto leds = controller->getLEDs(channelIndex);
+	auto count = controller->getLEDCount(channelIndex);
+	if (leds == nullptr || count == 0) {
+		return;
+	}
+
+	const int maxLeds = 96;
+	const int maxChannels = 2;
+	static CRGB prevLeds[maxChannels][maxLeds];
+	static bool initialized[maxChannels] = {false};
+
+	if (channelIndex >= maxChannels) return;
+
+	if (!initialized[channelIndex]) {
+		int copyCount = min((int)count, maxLeds);
+		memcpy(prevLeds[channelIndex], leds, sizeof(CRGB) * copyCount);
+		initialized[channelIndex] = true;
+		return;
+	}
+
+	for (int ledIndex = 0; ledIndex < count && ledIndex < maxLeds; ledIndex++) {
+		uint16_t r = ((uint16_t)alpha * leds[ledIndex].r + (256 - alpha) * prevLeds[channelIndex][ledIndex].r) >> 8;
+		uint16_t g = ((uint16_t)alpha * leds[ledIndex].g + (256 - alpha) * prevLeds[channelIndex][ledIndex].g) >> 8;
+		uint16_t b = ((uint16_t)alpha * leds[ledIndex].b + (256 - alpha) * prevLeds[channelIndex][ledIndex].b) >> 8;
+
+		leds[ledIndex].r = r;
+		leds[ledIndex].g = g;
+		leds[ledIndex].b = b;
+
+		prevLeds[channelIndex][ledIndex] = leds[ledIndex];
+	}
+}

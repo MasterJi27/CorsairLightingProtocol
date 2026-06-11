@@ -46,15 +46,11 @@ PWMFan::PWMFan(uint8_t pwmPin, uint16_t minRPM, uint16_t maxRPM) : pwmPin(pwmPin
 	}
 }
 
-void PWMFan::setPower(uint8_t percentage) {
-	analogWrite(pwmPin, percentage);
-}
+void PWMFan::setPower(uint8_t percentage) { analogWrite(pwmPin, percentage); }
 
 uint8_t PWMFan::calculatePowerFromSpeed(uint16_t rpm) {
 	rpm = constrain(rpm, minRPM, maxRPM);
 	return ((float)(rpm - minRPM) / (float)(maxRPM - minRPM)) * 255;
 }
 
-uint16_t PWMFan::calculateSpeedFromPower(uint8_t power) {
-	return map(power, 0, 255, minRPM, maxRPM);
-}
+uint16_t PWMFan::calculateSpeedFromPower(uint8_t power) { return map(power, 0, 255, minRPM, maxRPM); }

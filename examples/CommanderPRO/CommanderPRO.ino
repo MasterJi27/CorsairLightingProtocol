@@ -16,9 +16,6 @@
 #include <CorsairLightingProtocol.h>
 #include <FastLED.h>
 
-#include "SimpleFanController.h"
-#include "ThermistorTemperatureController.h"
-
 #define DATA_PIN_CHANNEL_1 2
 #define DATA_PIN_CHANNEL_2 3
 
