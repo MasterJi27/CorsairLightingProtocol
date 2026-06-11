@@ -154,6 +154,7 @@ Now you can create custom lighting effects in the **Lighting Channel #** tabs.
 - [How it works](#how-it-works)
 - [Use of multiple devices](#use-of-multiple-devices)
 - [Create a Commander PRO (Fans & Temperature)](#create-a-commander-pro-fans-temperature)
+- [Callback Temperature & Voltage Controller](#callback-temperature--voltage-controller)
 - [Connect Multiple Fans without a Corsair RGB Fan Hub](#connect-multiple-fans-without-a-corsair-rgb-fan-hub)
 - [Control Non-Addressable (Analog) RGB Strips](#control-non-addressable-analog-rgb-strips)
 - [Ambient Backlighting (LS100/LT100 Emulation)](#ambient-backlighting-ls100lt100-emulation)
@@ -265,6 +266,73 @@ void loop() {
 
 > [!TIP]
 > Standard NTC 10k Ohm thermistors are ideal for monitoring liquid, intake, or ambient temperatures. Place them in your cooling loop or case, register them in your code, and customize fan speeds inside iCUE based on these readings.
+
+## Callback Temperature & Voltage Controller
+If you want to read digital sensors (such as DS18B20 or DHT22), check the internal temperature of your Arduino/Pico chip, or measure the live USB power supply voltage, you can use the `CallbackTemperatureController`. This class allows you to register custom lambdas or functions that return the values directly to iCUE.
+
+Example setup based on [CallbackTemperature.ino](examples/CallbackTemperature/CallbackTemperature.ino):
+
+```C++
+#include <CorsairLightingProtocol.h>
+#include <FastLED.h>
+
+#define DATA_PIN_CHANNEL_1 2
+#define DATA_PIN_CHANNEL_2 3
+#define CHANNEL_LED_COUNT  60
+
+CorsairLightingFirmwareStorageEEPROM firmwareStorage;
+// Emulate Commander PRO to enable Temperature and Voltage tabs in iCUE
+CorsairLightingFirmware firmware(CORSAIR_COMMANDER_PRO, &firmwareStorage);
+
+CallbackTemperatureController temperatureController;
+FastLEDControllerStorageEEPROM storage;
+FastLEDController ledController(&storage);
+CorsairLightingProtocolController cLP(&ledController, &temperatureController, nullptr, &firmware);
+CorsairLightingProtocolHID cHID(&cLP);
+
+CRGB ledsChannel1[CHANNEL_LED_COUNT];
+CRGB ledsChannel2[CHANNEL_LED_COUNT];
+
+void setup() {
+    FastLED.addLeds<WS2812B, DATA_PIN_CHANNEL_1, GRB>(ledsChannel1, CHANNEL_LED_COUNT);
+    FastLED.addLeds<WS2812B, DATA_PIN_CHANNEL_2, GRB>(ledsChannel2, CHANNEL_LED_COUNT);
+    ledController.addLEDs(0, ledsChannel1, CHANNEL_LED_COUNT);
+    ledController.addLEDs(1, ledsChannel2, CHANNEL_LED_COUNT);
+
+    // 1. Register custom temperature callback
+    temperatureController.setTemperatureCallback([](uint8_t sensorIndex) -> uint16_t {
+        if (sensorIndex == 0) {
+            // Read internal chip/CPU temperature of the ATmega32U4 / RP2040 (in hundredths of a degree C)
+            return CallbackTemperatureController::readInternalChipTemperature();
+        } else if (sensorIndex == 1) {
+            // Read digital DS18B20 sensor (e.g. 28.5C = 2850)
+            return 2850; 
+        }
+        return 0;
+    });
+
+    // 2. Register connection state callback
+    temperatureController.setSensorConnectedCallback([](uint8_t sensorIndex) -> bool {
+        return (sensorIndex == 0 || sensorIndex == 1);
+    });
+
+    // 3. Register live voltage rail callback
+    temperatureController.setVoltageCallback([](uint8_t railIndex) -> uint16_t {
+        if (railIndex == VOLTAGE_RAIL_5V) {
+            // Measure actual board supply voltage (in mV) using internal bandgap reference
+            return CallbackTemperatureController::readInternalVcc();
+        }
+        return (railIndex == VOLTAGE_RAIL_12V) ? 12000 : 3300;
+    });
+}
+
+void loop() {
+    cHID.update();
+    if (ledController.updateLEDs()) {
+        FastLED.show();
+    }
+}
+```
 
 ## Connect Multiple Fans without a Corsair RGB Fan Hub
 Normally, Corsair RGB fans must be plugged into a proprietary RGB Fan LED Hub. However, using this library, you can connect each fan's RGB data line to **separate digital pins** on your Arduino (e.g. Pin 2, Pin 3, Pin 4...) and map them to a single virtual LED channel in iCUE.

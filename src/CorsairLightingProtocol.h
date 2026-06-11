@@ -21,6 +21,7 @@
  */
 #include "CLPAdditionalFeatures.h"
 #include "CLPUtils.h"
+#include "CallbackTemperatureController.h"
 #include "CorsairLightingFirmware.h"
 #include "CorsairLightingFirmwareStorageEEPROM.h"
 #include "CorsairLightingFirmwareStorageStatic.h"
