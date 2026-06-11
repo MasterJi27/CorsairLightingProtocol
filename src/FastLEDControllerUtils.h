@@ -106,4 +106,45 @@ void gammaCorrection(FastLEDController* controller, uint8_t channelIndex);
  * @param channelIndex the index of the channel
  */
 void fixIcueBrightness(FastLEDController* controller, uint8_t channelIndex);
+
+typedef enum {
+	CLP_STANDBY_OFF = 0,
+	CLP_STANDBY_RAINBOW_WAVE,
+	CLP_STANDBY_BREATHING,
+	CLP_STANDBY_SOLID
+} clp_standby_mode_t;
+
+/**
+ * Calibrates the color (white balance) of a specific LED channel. This applies a correction scale to every color
+ * value received from iCUE. Useful if different channels have LED strips with different color characteristics.
+ *
+ * @param controller the FastLEDController controlling the LEDs
+ * @param channelIndex the index of the channel
+ * @param correction CRGB scaling factor (e.g. CRGB(255, 230, 200) for correcting blue/cool temperature)
+ */
+void applyColorCorrection(FastLEDController* controller, uint8_t channelIndex, const CRGB& correction);
+
+/**
+ * Maps a 1D iCUE LED channel to a 2D LED matrix panel.
+ *
+ * @param controller the FastLEDController controlling the LEDs
+ * @param channelIndex the index of the channel
+ * @param width the width of the 2D grid/matrix
+ * @param height the height of the 2D grid/matrix
+ * @param zigzag if true, alternate rows/columns are reversed (serpentine layout)
+ */
+void mapToMatrix(FastLEDController* controller, uint8_t channelIndex, uint8_t width, uint8_t height,
+				 bool zigzag = true);
+
+/**
+ * Automatically triggers a built-in standby animation on the LED channel when USB connection to iCUE is inactive.
+ *
+ * @param controller the FastLEDController controlling the LEDs
+ * @param channelIndex the index of the channel
+ * @param mode the standby animation mode (Off, Rainbow Wave, Breathing, or Solid)
+ * @param color the base color used for Breathing or Solid modes (defaults to White)
+ * @param speed the animation speed factor (defaults to 20)
+ */
+void enableStandbyAnimation(FastLEDController* controller, uint8_t channelIndex, clp_standby_mode_t mode,
+							const CRGB& color = CRGB::White, uint8_t speed = 20);
 }  // namespace CLP

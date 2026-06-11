@@ -188,6 +188,12 @@ public:
 	 * Reset all persistent data to default values of the LEDController.
 	 */
 	virtual void reset();
+	/**
+	 * Get the time at which the last command was received by the LEDController.
+	 *
+	 * @return the timestamp of the last command
+	 */
+	unsigned long getLastCommand() const { return lastCommand; }
 
 protected:
 	LEDChannel channels[CHANNEL_NUM];

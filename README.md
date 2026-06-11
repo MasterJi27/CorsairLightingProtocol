@@ -158,6 +158,9 @@ Now you can create custom lighting effects in the **Lighting Channel #** tabs.
 - [Connect Multiple Fans without a Corsair RGB Fan Hub](#connect-multiple-fans-without-a-corsair-rgb-fan-hub)
 - [Control Non-Addressable (Analog) RGB Strips](#control-non-addressable-analog-rgb-strips)
 - [Ambient Backlighting (LS100/LT100 Emulation)](#ambient-backlighting-ls100lt100-emulation)
+- [Dynamic Per-Channel Color Calibration (White Balance)](#dynamic-per-channel-color-calibration-white-balance)
+- [2D Matrix Mapping (1D to 2D Grid Mapping)](#2d-matrix-mapping-1d-to-2d-grid-mapping)
+- [Built-in Standby / Sleep Animation Autotoggle](#built-in-standby--sleep-animation-autotoggle)
 - [Disabling EEPROM (Wear Prevention)](#disabling-eeprom-wear-prevention)
 - [Using HoodLoader2 (Arduino Uno & Mega)](#using-hoodloader2-arduino-uno--mega)
 - [Repeat or scale LED channels](#repeat-or-scale-led-channels)
@@ -437,6 +440,65 @@ void loop() {
 
 > [!NOTE]
 > Under LS100/LT100, iCUE restricts the LED brightness to a maximum of 50% for eye safety. The `CLP::fixIcueBrightness` utility scales the output back to 100% so you can utilize your LEDs' full brightness.
+
+## Dynamic Per-Channel Color Calibration (White Balance)
+If you have cheap generic LED strips connected to one channel and high-quality strips to another, you might notice that their white colors don't match (e.g., one looks too blue/cool and the other too red/warm). FastLED has global color correction, but using this library, you can calibrate the color balance (white balance) **per channel individually**.
+
+Add `CLP::applyColorCorrection` in the update hook:
+
+```C++
+void setup() {
+    FastLED.addLeds<WS2812B, DATA_PIN, GRB>(leds, LED_COUNT);
+    ledController.addLEDs(0, leds, LED_COUNT);
+
+    ledController.onUpdateHook(0, []() {
+        // Adjust the red, green, and blue ratios to correct a cool/blue tint
+        CLP::applyColorCorrection(&ledController, 0, CRGB(255, 230, 200));
+    });
+}
+```
+
+## 2D Matrix Mapping (1D to 2D Grid Mapping)
+iCUE only supports 1D lighting channels (strips or fans). If you are building a custom 2D LED matrix panel (e.g., 8x8 or 16x16) and want to control it using iCUE, you can map the 1D channel coordinates into a 2D grid layout. The library supports both **parallel** and **serpentine (zigzag)** grid layouts.
+
+Add `CLP::mapToMatrix` in the update hook:
+
+```C++
+void setup() {
+    // 8x8 matrix connected to pin 2
+    FastLED.addLeds<WS2812B, DATA_PIN, GRB>(leds, 64);
+    ledController.addLEDs(0, leds, 64);
+
+    ledController.onUpdateHook(0, []() {
+        // Map 1D strip index to an 8x8 matrix (width = 8, height = 8, zigzag = true)
+        CLP::mapToMatrix(&ledController, 0, 8, 8, true);
+    });
+}
+```
+
+## Built-in Standby / Sleep Animation Autotoggle
+Instead of writing your own animation loop when the PC shuts down or iCUE is closed, you can enable a built-in standby animation. The library will automatically trigger the standby animation on the specified channel after a timeout.
+
+Available modes:
+* `CLP_STANDBY_OFF`: Turn off all LEDs.
+* `CLP_STANDBY_RAINBOW_WAVE`: Beautiful rainbow wave animation.
+* `CLP_STANDBY_BREATHING`: Slow breathing/pulsing effect.
+* `CLP_STANDBY_SOLID`: Display a solid static color.
+
+Add `CLP::enableStandbyAnimation` in your main `loop()` function:
+
+```C++
+void loop() {
+    cHID.update();
+
+    if (ledController.updateLEDs()) {
+        FastLED.show();
+    }
+
+    // Automatically plays a rainbow wave at speed 20 when iCUE is not running
+    CLP::enableStandbyAnimation(&ledController, 0, CLP_STANDBY_RAINBOW_WAVE, CRGB::White, 20);
+}
+```
 
 ## Disabling EEPROM (Wear Prevention)
 By default, the library stores active lighting profiles and custom device IDs inside the Arduino's non-volatile EEPROM. If you want to prevent EEPROM write wear or are running on a board that lacks native EEPROM (like the Raspberry Pi Pico), you can configure the library to use static in-memory storage.

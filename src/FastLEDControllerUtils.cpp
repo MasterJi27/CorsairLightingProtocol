@@ -186,3 +186,97 @@ void CLP::fixIcueBrightness(FastLEDController* controller, uint8_t channelIndex)
 		}
 	}
 }
+
+void CLP::applyColorCorrection(FastLEDController* controller, uint8_t channelIndex, const CRGB& correction) {
+	auto leds = controller->getLEDs(channelIndex);
+	auto count = controller->getLEDCount(channelIndex);
+	if (leds == nullptr) {
+		return;
+	}
+	for (int ledIndex = 0; ledIndex < count; ledIndex++) {
+		leds[ledIndex].r = (leds[ledIndex].r * correction.r) >> 8;
+		leds[ledIndex].g = (leds[ledIndex].g * correction.g) >> 8;
+		leds[ledIndex].b = (leds[ledIndex].b * correction.b) >> 8;
+	}
+}
+
+void CLP::mapToMatrix(FastLEDController* controller, uint8_t channelIndex, uint8_t width, uint8_t height, bool zigzag) {
+	auto leds = controller->getLEDs(channelIndex);
+	auto count = controller->getLEDCount(channelIndex);
+	if (leds == nullptr || count == 0 || width == 0 || height == 0) {
+		return;
+	}
+
+	const int maxLeds = 256;
+	int total = width * height;
+	if (total > count) {
+		total = count;
+	}
+	if (total > maxLeds) {
+		total = maxLeds;
+	}
+	CRGB tempLeds[maxLeds];
+	memcpy(tempLeds, leds, sizeof(CRGB) * total);
+
+	for (int y = 0; y < height; y++) {
+		for (int x = 0; x < width; x++) {
+			int inputIndex = y * width + x;
+			if (inputIndex >= total) break;
+
+			int outputIndex;
+			if (zigzag && (y % 2 != 0)) {
+				outputIndex = y * width + (width - 1 - x);
+			} else {
+				outputIndex = y * width + x;
+			}
+
+			if (outputIndex < count) {
+				leds[outputIndex] = tempLeds[inputIndex];
+			}
+		}
+	}
+}
+
+void CLP::enableStandbyAnimation(FastLEDController* controller, uint8_t channelIndex, clp_standby_mode_t mode,
+								 const CRGB& color, uint8_t speed) {
+#ifndef LED_CONTROLLER_TIMEOUT
+#define LED_CONTROLLER_TIMEOUT 30000
+#endif
+
+	if (millis() - controller->getLastCommand() > LED_CONTROLLER_TIMEOUT) {
+		auto leds = controller->getLEDs(channelIndex);
+		auto count = controller->getLEDCount(channelIndex);
+		if (leds == nullptr || count == 0) {
+			return;
+		}
+
+		static uint8_t hue = 0;
+		static unsigned long lastTick = 0;
+		if (millis() - lastTick >= speed) {
+			hue++;
+			lastTick = millis();
+		}
+
+		switch (mode) {
+			case CLP_STANDBY_RAINBOW_WAVE:
+				fill_rainbow(leds, count, hue, 256 / count);
+				break;
+			case CLP_STANDBY_BREATHING: {
+				uint8_t brightness = quadwave8(hue);
+				for (int i = 0; i < count; i++) {
+					leds[i].r = (color.r * brightness) >> 8;
+					leds[i].g = (color.g * brightness) >> 8;
+					leds[i].b = (color.b * brightness) >> 8;
+				}
+				break;
+			}
+			case CLP_STANDBY_SOLID:
+				fill_solid(leds, count, color);
+				break;
+			case CLP_STANDBY_OFF:
+			default:
+				fill_solid(leds, count, CRGB::Black);
+				break;
+		}
+	}
+}
