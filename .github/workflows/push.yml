@@ -8,9 +8,9 @@ jobs:
       matrix:
         board:
           [
-            "MasterJi27:avr:leonardoclp",
-            "MasterJi27:avr:promicro5vclp",
-            "MasterJi27:avr:promicro3vclp",
+            "Legion2:avr:leonardoclp",
+            "Legion2:avr:promicro5vclp",
+            "Legion2:avr:promicro3vclp",
           ]
     steps:
       - uses: actions/checkout@v4
@@ -19,8 +19,8 @@ jobs:
         with:
           cli-version: 0.18.3
           arduino-board-fqbn: ${{ matrix.board }}
-          platform-url: https://raw.githubusercontent.com/sparkfun/Arduino_Boards/master/IDE_Board_Manager/package_sparkfun_index.json,https://raw.githubusercontent.com/MasterJi27/CorsairLightingProtocolBoards/master/package_MasterJi27_CorsairLightingProtocolBoards_index.json
-          arduino-platform: arduino:avr@1.8.3,SparkFun:avr@1.1.13,MasterJi27:avr@0.3.1
+          platform-url: https://raw.githubusercontent.com/sparkfun/Arduino_Boards/master/IDE_Board_Manager/package_sparkfun_index.json,https://raw.githubusercontent.com/Legion2/CorsairLightingProtocolBoards/master/package_Legion2_CorsairLightingProtocolBoards_index.json
+          arduino-platform: arduino:avr@1.8.3,SparkFun:avr@1.1.13,Legion2:avr@0.3.1
           required-libraries: FastLED@3.5.0
           sketch-names: LightingNodePRO.ino,
             SingleStripLightingNodePRO.ino,
@@ -59,7 +59,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        board: ["MasterJi27:avr:HoodLoader2atmega16u2clp"]
+        board: ["Legion2:avr:HoodLoader2atmega16u2clp"]
     steps:
       - uses: actions/checkout@v4
       - name: Build for ${{ matrix.board }}
@@ -67,8 +67,8 @@ jobs:
         with:
           cli-version: 0.18.3
           arduino-board-fqbn: ${{ matrix.board }}
-          platform-url: https://raw.githubusercontent.com/NicoHood/HoodLoader2/master/package_NicoHood_HoodLoader2_index.json,https://raw.githubusercontent.com/MasterJi27/CorsairLightingProtocolBoards/master/package_MasterJi27_CorsairLightingProtocolBoards_index.json
-          arduino-platform: arduino:avr@1.8.3,HoodLoader2:avr@2.0.5,MasterJi27:avr@0.3.1
+          platform-url: https://raw.githubusercontent.com/NicoHood/HoodLoader2/master/package_NicoHood_HoodLoader2_index.json,https://raw.githubusercontent.com/Legion2/CorsairLightingProtocolBoards/master/package_Legion2_CorsairLightingProtocolBoards_index.json
+          arduino-platform: arduino:avr@1.8.3,HoodLoader2:avr@2.0.5,Legion2:avr@0.3.1
           required-libraries: FastLED@3.5.0
           sketch-names: HoodLoader2CLPBridge.ino
   testAdafruitSAMD:
