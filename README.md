@@ -242,7 +242,7 @@ CorsairLightingProtocolHID cHID(&cLP);
 CRGB ledsChannel1[CHANNEL_LED_COUNT];
 CRGB ledsChannel2[CHANNEL_LED_COUNT];
 
-PWMFan fan1(PWM_FAN_PIN_1, 0, 2000); // pin, tacho Pin (0 for none), max RPM
+PWMFan fan1(PWM_FAN_PIN_1, A0, 0, 2000); // PWM pin, Tacho Pin (A0, or 0 for none), Min RPM, Max RPM
 
 void setup() {
     FastLED.addLeds<WS2812B, DATA_PIN_CHANNEL_1, GRB>(ledsChannel1, CHANNEL_LED_COUNT);
@@ -263,6 +263,7 @@ void loop() {
         FastLED.show();
     }
     fanController.updateFans();
+    fanController.update(); // Polls the tacho pin for real RPM readings
 }
 ```
 

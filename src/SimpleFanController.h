@@ -58,6 +58,10 @@ public:
 	 * Update the fan speeds based on the temperature and commands.
 	 */
 	virtual bool updateFans();
+	/**
+	 * Polls the tachometer inputs of all registered fans. Should be called on every iteration of loop().
+	 */
+	void update();
 
 protected:
 	virtual uint16_t getFanSpeed(uint8_t fan) override;

@@ -68,4 +68,5 @@ void loop() {
 		FastLED.show();
 	}
 	fanController.updateFans();
+	fanController.update();
 }

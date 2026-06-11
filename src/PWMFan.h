@@ -20,20 +20,30 @@
 class PWMFan {
 public:
 	/**
-	 * PWM fan which maps speed to power using linear interpolation. This fan does not read the real RPM values. The
-	 * Arduino timer for the given pin will be set to higher speed.
+	 * PWM fan which maps speed to power using linear interpolation. Can also read real RPM values
+	 * if a tachometer pin is provided.
 	 *
 	 * @param pwmPin the Arduino pwm pin for this fan. Not all PWM pins are supported.
+	 * @param tachoPin the Arduino pin to read tachometer pulses (optional, 0 = disabled)
 	 * @param minRPM the speed in RPM at 0% power
 	 * @param maxRPM the speed in RPM at 100% power
 	 */
-	PWMFan(uint8_t pwmPin, uint16_t minRPM, uint16_t maxRPM);
+	PWMFan(uint8_t pwmPin, uint8_t tachoPin = 0, uint16_t minRPM = 0, uint16_t maxRPM = 2000);
 	virtual void setPower(uint8_t percentage);
 	virtual uint8_t calculatePowerFromSpeed(uint16_t rpm);
 	virtual uint16_t calculateSpeedFromPower(uint8_t power);
 
+	uint16_t getSpeed() const;
+	void updateTacho();
+
 protected:
 	const uint8_t pwmPin;
+	const uint8_t tachoPin;
 	const uint16_t minRPM;
 	const uint16_t maxRPM;
+
+	uint16_t currentRPM;
+	uint8_t lastTachoState;
+	unsigned long lastTachoTime;
+	uint8_t currentPower;
 };

@@ -15,9 +15,21 @@
 */
 #include "PWMFan.h"
 
-PWMFan::PWMFan(uint8_t pwmPin, uint16_t minRPM, uint16_t maxRPM) : pwmPin(pwmPin), minRPM(minRPM), maxRPM(maxRPM) {
+PWMFan::PWMFan(uint8_t pwmPin, uint8_t tachoPin, uint16_t minRPM, uint16_t maxRPM)
+	: pwmPin(pwmPin),
+	  tachoPin(tachoPin),
+	  minRPM(minRPM),
+	  maxRPM(maxRPM),
+	  currentRPM(0),
+	  lastTachoState(HIGH),
+	  lastTachoTime(0),
+	  currentPower(0) {
 	pinMode(pwmPin, OUTPUT);
 	analogWrite(pwmPin, 0);
+	if (tachoPin != 0) {
+		pinMode(tachoPin, INPUT_PULLUP);
+	}
+
 	switch (digitalPinToTimer(pwmPin)) {
 		case TIMER0B: /* 3 */
 #ifdef DEBUG
@@ -29,7 +41,6 @@ PWMFan::PWMFan(uint8_t pwmPin, uint16_t minRPM, uint16_t maxRPM) : pwmPin(pwmPin
 			TCCR3B = (TCCR3B & B11111000) | 0x01;
 			break;
 		case TIMER4D: /* 6 */
-			// PLLFRQ = (PLLFRQ & B11001111) | (0x03 << PLLTM0);
 			TCCR4B = (TCCR4B & B11110000) | 0x01;
 			break;
 		case TIMER1A: /* 9 */
@@ -46,7 +57,10 @@ PWMFan::PWMFan(uint8_t pwmPin, uint16_t minRPM, uint16_t maxRPM) : pwmPin(pwmPin
 	}
 }
 
-void PWMFan::setPower(uint8_t percentage) { analogWrite(pwmPin, percentage); }
+void PWMFan::setPower(uint8_t percentage) {
+	analogWrite(pwmPin, percentage);
+	currentPower = percentage;
+}
 
 uint8_t PWMFan::calculatePowerFromSpeed(uint16_t rpm) {
 	rpm = constrain(rpm, minRPM, maxRPM);
@@ -54,3 +68,33 @@ uint8_t PWMFan::calculatePowerFromSpeed(uint16_t rpm) {
 }
 
 uint16_t PWMFan::calculateSpeedFromPower(uint8_t power) { return map(power, 0, 255, minRPM, maxRPM); }
+
+uint16_t PWMFan::getSpeed() const {
+	if (tachoPin == 0) {
+		return calculateSpeedFromPower(currentPower);
+	}
+	return currentRPM;
+}
+
+void PWMFan::updateTacho() {
+	if (tachoPin == 0) return;
+
+	uint8_t state = digitalRead(tachoPin);
+	unsigned long now = micros();
+
+	if (state != lastTachoState) {
+		if (state == LOW) {  // falling edge (active low tachometer pulse)
+			unsigned long period = now - lastTachoTime;
+			if (period > 1000) {                   // debounce: ignore pulses corresponding to > 30,000 RPM
+				currentRPM = 30000000UL / period;  // 2 pulses per revolution -> RPM = 60s * 10^6 us / (2 * period)
+				lastTachoTime = now;
+			}
+		}
+		lastTachoState = state;
+	}
+
+	// Timeout: if no pulses for 1.5 seconds, the fan has stopped
+	if (now - lastTachoTime > 1500000UL) {
+		currentRPM = 0;
+	}
+}

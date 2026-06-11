@@ -93,7 +93,20 @@ bool SimpleFanController::updateFans() {
 	return false;
 }
 
-uint16_t SimpleFanController::getFanSpeed(uint8_t fan) { return fanData[fan].speed; }
+uint16_t SimpleFanController::getFanSpeed(uint8_t fan) {
+	if (fans[fan] != nullptr) {
+		return fans[fan]->getSpeed();
+	}
+	return fanData[fan].speed;
+}
+
+void SimpleFanController::update() {
+	for (uint8_t i = 0; i < FAN_NUM; i++) {
+		if (fans[i] != nullptr) {
+			fans[i]->updateTacho();
+		}
+	}
+}
 
 void SimpleFanController::setFanSpeed(uint8_t fan, uint16_t speed) {
 	fanData[fan].speed = speed;
