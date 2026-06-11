@@ -153,8 +153,12 @@ Now you can create custom lighting effects in the **Lighting Channel #** tabs.
 - [API Documentation](https://masterji27.github.io/CorsairLightingProtocol/)
 - [How it works](#how-it-works)
 - [Use of multiple devices](#use-of-multiple-devices)
+- [Create a Commander PRO (Fans & Temperature)](#create-a-commander-pro-fans-temperature)
+- [Connect Multiple Fans without a Corsair RGB Fan Hub](#connect-multiple-fans-without-a-corsair-rgb-fan-hub)
+- [Control Non-Addressable (Analog) RGB Strips](#control-non-addressable-analog-rgb-strips)
 - [Repeat or scale LED channels](#repeat-or-scale-led-channels)
 - [Increase the Brightness of the LEDs](#increase-the-brightness-of-the-leds)
+- [Reverse direction of LED Strip](#reverse-direction-of-led-strip)
 - [Hardware Lighting mode](#hardware-lighting-mode)
 
 ## How it works
@@ -191,6 +195,126 @@ The `DeviceID` can be changed with the [DeviceIDTool](examples/DeviceIDTool/Devi
 Upload the DeviceIDTool sketch and then open the Serial monitor with baudrate 115200.
 The tool displays the current DeviceID, you can type in a new DeviceID that is saved on the Arduino.
 After that, you can upload another sketch.
+
+## Create a Commander PRO (Fans & Temperature)
+The library can emulate a **Corsair Commander PRO**, allowing you to control PWM PC fans and read analog temperature sensors (thermistors) directly inside iCUE.
+
+To emulate a Commander PRO:
+1. Initialize the firmware constructor with the device type `CORSAIR_COMMANDER_PRO`.
+2. Instantiate `ThermistorTemperatureController` and `SimpleFanController` helper classes.
+3. Pass them to the `CorsairLightingProtocolController` configuration.
+
+Here is a simplified configuration example based on [CommanderPRO.ino](examples/CommanderPRO/CommanderPRO.ino):
+
+```C++
+#include <CorsairLightingProtocol.h>
+#include <FastLED.h>
+#include "SimpleFanController.h"
+#include "ThermistorTemperatureController.h"
+
+#define DATA_PIN_CHANNEL_1 2
+#define DATA_PIN_CHANNEL_2 3
+#define TEMP_SENSOR_PIN_1  A6
+#define PWM_FAN_PIN_1      5
+
+#define CHANNEL_LED_COUNT  96
+
+CorsairLightingFirmwareStorageEEPROM firmwareStorage;
+// Emulate Commander PRO instead of Lighting Node PRO
+CorsairLightingFirmware firmware(CORSAIR_COMMANDER_PRO, &firmwareStorage);
+
+ThermistorTemperatureController temperatureController;
+FastLEDControllerStorageEEPROM storage;
+FastLEDController ledController(&storage);
+SimpleFanController fanController(&temperatureController, 500, EEPROM_ADDRESS + storage.getEEPROMSize());
+
+CorsairLightingProtocolController cLP(&ledController, &temperatureController, &fanController, &firmware);
+CorsairLightingProtocolHID cHID(&cLP);
+
+CRGB ledsChannel1[CHANNEL_LED_COUNT];
+CRGB ledsChannel2[CHANNEL_LED_COUNT];
+
+PWMFan fan1(PWM_FAN_PIN_1, 0, 2000); // pin, tacho Pin (0 for none), max RPM
+
+void setup() {
+    FastLED.addLeds<WS2812B, DATA_PIN_CHANNEL_1, GRB>(ledsChannel1, CHANNEL_LED_COUNT);
+    FastLED.addLeds<WS2812B, DATA_PIN_CHANNEL_2, GRB>(ledsChannel2, CHANNEL_LED_COUNT);
+    ledController.addLEDs(0, ledsChannel1, CHANNEL_LED_COUNT);
+    ledController.addLEDs(1, ledsChannel2, CHANNEL_LED_COUNT);
+
+    // Register 10k Ohm NTC temperature sensor
+    temperatureController.addSensor(0, TEMP_SENSOR_PIN_1);
+    
+    // Register PWM fan
+    fanController.addFan(0, &fan1);
+}
+
+void loop() {
+    cHID.update();
+    if (ledController.updateLEDs()) {
+        FastLED.show();
+    }
+    fanController.updateFans();
+}
+```
+
+> [!TIP]
+> Standard NTC 10k Ohm thermistors are ideal for monitoring liquid, intake, or ambient temperatures. Place them in your cooling loop or case, register them in your code, and customize fan speeds inside iCUE based on these readings.
+
+## Connect Multiple Fans without a Corsair RGB Fan Hub
+Normally, Corsair RGB fans must be plugged into a proprietary RGB Fan LED Hub. However, using this library, you can connect each fan's RGB data line to **separate digital pins** on your Arduino (e.g. Pin 2, Pin 3, Pin 4...) and map them to a single virtual LED channel in iCUE.
+
+This avoids the need for a physical hardware hub!
+
+Example setup based on [MultipleFans.ino](examples/MultipleFans/MultipleFans.ino):
+
+```C++
+#define NUMBER_OF_LEDS_PER_FAN 8 // E.g., SP120 RGB has 8 LEDs per fan
+
+#define DATA_PIN_FAN_1 2
+#define DATA_PIN_FAN_2 3
+#define DATA_PIN_FAN_3 4
+
+CRGB ledsChannel1[24]; // 3 fans * 8 LEDs = 24 LEDs total
+
+void setup() {
+    // Distribute fan data lines onto separate pins but share the same virtual CRGB array:
+    FastLED.addLeds<WS2812B, DATA_PIN_FAN_1, GRB>(ledsChannel1, NUMBER_OF_LEDS_PER_FAN * 0, NUMBER_OF_LEDS_PER_FAN);
+    FastLED.addLeds<WS2812B, DATA_PIN_FAN_2, GRB>(ledsChannel1, NUMBER_OF_LEDS_PER_FAN * 1, NUMBER_OF_LEDS_PER_FAN);
+    FastLED.addLeds<WS2812B, DATA_PIN_FAN_3, GRB>(ledsChannel1, NUMBER_OF_LEDS_PER_FAN * 2, NUMBER_OF_LEDS_PER_FAN);
+
+    ledController.addLEDs(0, ledsChannel1, 24);
+}
+```
+
+## Control Non-Addressable (Analog) RGB Strips
+If you have standard 4-pin 12V or 5V analog RGB strips, you can still control them via iCUE. The library can be configured to take the color of the first LED of a virtual channel and output it to Arduino PWM pins connected to RGB drive transistors (like N-channel MOSFETs).
+
+Example setup based on [NonAddressable.ino](examples/NonAddressable/NonAddressable.ino):
+
+```C++
+#define RED_PIN 3
+#define GREEN_PIN 5
+#define BLUE_PIN 6
+
+CRGB ledsChannel1[10];
+
+void setup() {
+    pinMode(RED_PIN, OUTPUT);
+    pinMode(GREEN_PIN, OUTPUT);
+    pinMode(BLUE_PIN, OUTPUT);
+
+    ledController.addLEDs(0, ledsChannel1, 10);
+    
+    // Intercept update event and mirror the first LED's color to the PWM pins
+    ledController.onUpdateHook(0, []() {
+        analogWrite(RED_PIN, ledsChannel1[0].r);
+        analogWrite(GREEN_PIN, ledsChannel1[0].g);
+        analogWrite(BLUE_PIN, ledsChannel1[0].b);
+    });
+}
+```
+
 
 ## Repeat or scale LED channels
 You can repeat or scale LED channel controlled by iCUE onto physical LED strips.
