@@ -38,16 +38,24 @@ PWMFan::PWMFan(uint8_t pwmPin, uint8_t tachoPin, uint16_t minRPM, uint16_t maxRP
 #endif  // DEBUG
 			break;
 		case TIMER3A: /* 5 */
+#if defined(TCCR3B)
 			TCCR3B = (TCCR3B & B11111000) | 0x01;
+#endif
 			break;
 		case TIMER4D: /* 6 */
+#if defined(TCCR4B)
 			TCCR4B = (TCCR4B & B11110000) | 0x01;
+#endif
 			break;
 		case TIMER1A: /* 9 */
+#if defined(TCCR1B)
 			TCCR1B = (TCCR1B & B11111000) | 0x01;
+#endif
 			break;
 		case TIMER1B: /* 10 */
+#if defined(TCCR1B)
 			TCCR1B = (TCCR1B & B11111000) | 0x01;
+#endif
 			break;
 		default:
 #ifdef DEBUG
