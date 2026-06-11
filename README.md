@@ -82,18 +82,35 @@ If you have an Arduino Uno or Mega, see the [other guide](https://github.com/Mas
    
    ![the wiring](extra/images/board-wiring.jpg)
    ![connection diagram](extra/images/connection-diagram.jpg)
+
+   #### Connection Diagram Details:
+   * **Pro Micro / Leonardo (ATmega32U4):** Serves as the microcontroller that acts as a USB HID device, mimicking the Corsair Lighting Node PRO.
+   * **DC Barrel Jack (External 5V Power Supply):** Supplies the direct 5V current needed by the LED strips. Powering addressable LEDs (like WS2812B) directly from the Arduino/Pro Micro 5V pin or your PC's USB port will damage the board or trigger USB port overcurrent protection.
+   * **Pin 2 Pushbutton:** Connects Pin 2 to GND. An optional switch useful for custom hardware trigger profiles or reset mechanisms.
+   * **3-pin LED Connectors:** Standard JST-SM (or similar) connectors carrying:
+     * **VCC (5V):** Connected directly to the external 5V power supply.
+     * **Data:** Hooked to the Pro Micro's LED channel pins (e.g. Pin 3 and Pin 7) through a 220Ω–470Ω protective resistor.
+     * **GND:** Connected to the common ground rail.
+
+   > [!IMPORTANT]
+   > **Critical Wiring Rules:**
+   > * **Common Ground:** Ensure the ground (`GND`) of the external 5V power supply, the Arduino Pro Micro, and the LED strips are all tied together. Failing to do so causes signal noise, data corruption, and flickering.
+   > * **Isolate Power Rails:** Do not connect the external 5V rail directly to the Arduino's 5V/VCC pin while the Arduino is powered by the USB connection. Keep them isolated (power Arduino via USB, power LEDs via external supply) to prevent reverse current from damaging your computer's USB port.
+
 1. Verify your device works as expected.
    Open the Windows settings->devices->Other devices.
    Somewhere in the list of devices, there should be a device called "Lighting Node PRO".
 1. Now open [iCUE](https://www.corsair.com/icue) there you should see the "Lighting Node PRO".
 
-> If you have any problem during setup you may find the solution in the [Troubleshooting section](https://github.com/MasterJi27/CorsairLightingProtocol/wiki/Troubleshooting).
+> [!NOTE]
+> If you have any problems during setup, you may find the solution in the [Troubleshooting section](https://github.com/MasterJi27/CorsairLightingProtocol/wiki/Troubleshooting).
 
 ## Create a Lighting Node PRO for a Raspberry Pi Pico with TinyUSB
 
 This guide will teach you how to create a Lighting Node PRO with a Raspberry Pi Pico.
 
-**Note:** FastLED currently does not support the RP2040 natively. You must manually merge support by modifying your library to include the [6 RP2040 platform files](https://github.com/FastLED/FastLED/pull/1261/files#diff-fda1710ad90fcc4b2f07be21a834da7d24b00008867655232c84fb0369cfc74b) in the FastLED/src/platforms/arm/rp2040 folder and `#elif defined(ARDUINO_ARCH_RP2040)` / `#include` statements in [led_sysdefs.h](https://github.com/FastLED/FastLED/pull/1261/files#diff-95f6b43a0e6b0e58988e1be3bc6415ded5284082a4f2ce2aaa90f5931d4194af) and [platforms.h](https://github.com/FastLED/FastLED/pull/1261/files#diff-255ea38a6573ed237ea1fe164d5e87ca46811eef21ba6e2cef120fda47c6e62f).
+> [!WARNING]
+> FastLED currently does not support the RP2040 natively in older releases. You must manually merge support by modifying your library to include the [6 RP2040 platform files](https://github.com/FastLED/FastLED/pull/1261/files#diff-fda1710ad90fcc4b2f07be21a834da7d24b00008867655232c84fb0369cfc74b) in the `FastLED/src/platforms/arm/rp2040` folder and `#elif defined(ARDUINO_ARCH_RP2040)` / `#include` statements in [led_sysdefs.h](https://github.com/FastLED/FastLED/pull/1261/files#diff-95f6b43a0e6b0e58988e1be3bc6415ded5284082a4f2ce2aaa90f5931d4194af) and [platforms.h](https://github.com/FastLED/FastLED/pull/1261/files#diff-255ea38a6573ed237ea1fe164d5e87ca46811eef21ba6e2cef120fda47c6e62f).
 
 1. Install the [Raspberry Pi Pico Arduino core](https://github.com/earlephilhower/arduino-pico#installing-via-arduino-boards-manager).
 
@@ -108,7 +125,8 @@ This guide will teach you how to create a Lighting Node PRO with a Raspberry Pi 
 1. Do the wiring.
    For more information on [how to wire the LEDs](https://github.com/FastLED/FastLED/wiki/Wiring-leds) and [how to set up the LEDs in the code](https://github.com/FastLED/FastLED/wiki/Basic-usage#setting-up-the-leds) see the links.
 
-   A level shifter or buffer, like [this one](https://www.ti.com/product/SN74AHCT1G126), is recommended in between the Pico and LEDs to translate the 3.3v logic level of the Pico IO to the 5v logic level of the LEDs. Your setup may not work reliably without one.
+   > [!TIP]
+   > A level shifter or buffer, like [this SN74AHCT1G126](https://www.ti.com/product/SN74AHCT1G126), is highly recommended in between the Pico and the LEDs to translate the 3.3V logic level of the Pico IO to the 5V logic level of the LEDs. Your setup may not work reliably without one.
    
    ![the wiring](extra/images/board-wiring-pico.jpg)
 1. Verify your device works as expected.
@@ -118,12 +136,17 @@ This guide will teach you how to create a Lighting Node PRO with a Raspberry Pi 
 
 ## Use the Lighting Node PRO
 
+Once configured, open Corsair iCUE. Your custom Arduino board will display as a **Lighting Node PRO**!
+
+### Sample iCUE Dashboard
+![iCUE Dashboard Screenshot](extra/images/icue-dashboard.png)
+
+### Lighting Channels Setup
 ![iCUE RGB Strip example](extra/images/iCUE.jpg)
 
-In iCUE open the "Lighting Setup" tab of the Lighting Node PRO(LNP) and set for both Lighting Channels the device to "RGB Light Strip" and the amount to a tenth of the LEDs you have.
-iCUE groups the LEDs into groups of ten.
-So if you have 20 LEDs, set the amount to 2.
-Now you can create lighting effects in the "Lighting Channel #" tabs.
+In iCUE, open the **Lighting Setup** tab of the Lighting Node PRO (LNP) and set the device type for both Lighting Channels to **RGB Light Strip**. Set the amount to a tenth of the LEDs you have (since iCUE groups LEDs into groups of ten).
+For example, if you have 20 LEDs, set the amount to `2`.
+Now you can create custom lighting effects in the **Lighting Channel #** tabs.
 
 # Documentation
 
