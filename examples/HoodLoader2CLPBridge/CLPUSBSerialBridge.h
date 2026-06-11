@@ -23,7 +23,8 @@
 #define RAWHID_AND_SERIAL_BUFFER_SIZE COMMAND_SIZE
 #endif
 
-// Workaround for 16 byte responses don't work on 16U2 see https://github.com/MasterJi27/CorsairLightingProtocol/pull/152
+// Workaround for 16 byte responses don't work on 16U2 see
+// https://github.com/MasterJi27/CorsairLightingProtocol/pull/152
 #define RESPONSE_SIZE_16U2 64
 
 #define SERIAL_SYNCHRONIZATION_TIMEOUT 20
