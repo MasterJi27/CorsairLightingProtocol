@@ -71,3 +71,5 @@ uint8_t CorsairLightingFirmware::getStatus() { return status; }
 void CorsairLightingFirmware::setStatus(uint8_t a_status) { status = a_status; }
 
 uint8_t CorsairLightingFirmware::getProduct() { return product; }
+
+void CorsairLightingFirmware::setProduct(corsair_product_enum_t product) { this->product = product; }

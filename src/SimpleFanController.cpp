@@ -23,6 +23,20 @@ SimpleFanController::SimpleFanController(TemperatureController* temperatureContr
 	load();
 }
 
+void SimpleFanController::handleFanControl(const Command& command, const CorsairLightingProtocolResponse* response) {
+	lastFanCommand = millis();
+	FanController::handleFanControl(command, response);
+}
+
+void SimpleFanController::setStandbyFanCurve(uint8_t fan, FanCurve& fanCurve, uint8_t group) {
+	if (fan >= FAN_NUM) {
+		return;
+	}
+	standbyFanCurves[fan] = fanCurve;
+	standbyTempGroups[fan] = group;
+	standbyEnabled[fan] = true;
+}
+
 void SimpleFanController::addFan(uint8_t index, PWMFan* fan) {
 	if (index >= FAN_NUM) {
 		return;
@@ -49,37 +63,48 @@ bool SimpleFanController::updateFans() {
 			save();
 		}
 
+		bool isOffline = (millis() - lastFanCommand) > 30000;
+
 		for (uint8_t i = 0; i < FAN_NUM; i++) {
 			if (fans[i] == nullptr) {
 				continue;
 			}
-			if (fanData[i].mode == FAN_CONTROL_MODE_FIXED_RPM || fanData[i].mode == FAN_CONTROL_MODE_FIXED_POWER) {
+
+			uint8_t currentMode = fanData[i].mode;
+			uint8_t currentGroup = fanData[i].tempGroup;
+			const FanCurve* currentFanCurve = &fanData[i].fanCurve;
+
+			if (isOffline && standbyEnabled[i]) {
+				currentMode = FAN_CONTROL_MODE_CURVE;
+				currentGroup = standbyTempGroups[i];
+				currentFanCurve = &standbyFanCurves[i];
+			}
+
+			if (currentMode == FAN_CONTROL_MODE_FIXED_RPM || currentMode == FAN_CONTROL_MODE_FIXED_POWER) {
 				fans[i]->setPower(fanData[i].power);
 				continue;
 			}
 
-			uint16_t temp;
-			const uint8_t& group = fanData[i].tempGroup;
-			if (group == FAN_CURVE_TEMP_GROUP_EXTERNAL) {
+			uint16_t temp = 0;
+			if (currentGroup == FAN_CURVE_TEMP_GROUP_EXTERNAL) {
 				temp = externalTemp[i];
-			} else if (group < TEMPERATURE_NUM) {
-				temp = temperatureController->getTemperature(group);
+			} else if (currentGroup < TEMPERATURE_NUM) {
+				temp = temperatureController->getTemperature(currentGroup);
 			}
 
-			const FanCurve& fanCurve = fanData[i].fanCurve;
 			uint16_t speed;
 
-			if (temp <= fanCurve.temperatures[0]) {
-				speed = fanCurve.rpms[0];
-			} else if (temp > fanCurve.temperatures[FAN_CURVE_POINTS_NUM - 1]) {
-				speed = fanCurve.rpms[FAN_CURVE_POINTS_NUM - 1];
+			if (temp <= currentFanCurve->temperatures[0]) {
+				speed = currentFanCurve->rpms[0];
+			} else if (temp > currentFanCurve->temperatures[FAN_CURVE_POINTS_NUM - 1]) {
+				speed = currentFanCurve->rpms[FAN_CURVE_POINTS_NUM - 1];
 			} else {
 				for (uint8_t p = 0; p < FAN_CURVE_POINTS_NUM - 1; p++) {
-					if (temp > fanCurve.temperatures[p + 1]) {
+					if (temp > currentFanCurve->temperatures[p + 1]) {
 						continue;
 					}
-					speed = map(temp, fanCurve.temperatures[p], fanCurve.temperatures[p + 1], fanCurve.rpms[p],
-								fanCurve.rpms[p + 1]);
+					speed = map(temp, currentFanCurve->temperatures[p], currentFanCurve->temperatures[p + 1],
+								currentFanCurve->rpms[p], currentFanCurve->rpms[p + 1]);
 					break;
 				}
 			}

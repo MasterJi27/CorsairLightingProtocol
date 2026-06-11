@@ -59,10 +59,11 @@ public:
 	uint8_t getStatus();
 	void setStatus(uint8_t status);
 	uint8_t getProduct();
+	void setProduct(corsair_product_enum_t product);
 
 protected:
 	CorsairLightingFirmwareStorage* const storage;
-	const corsair_product_enum_t product;
+	corsair_product_enum_t product;
 	DeviceID deviceId;
 
 private:

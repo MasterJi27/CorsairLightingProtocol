@@ -55,6 +55,17 @@ void scale(FastLEDController* controller, uint8_t channelIndex, int scaleToSize)
 void repeat(FastLEDController* controller, uint8_t channelIndex, uint8_t times);
 
 /**
+ * Mirror the colors of an iCUE channel to an external, physically separate LED array.
+ * This is useful if you want to duplicate a channel's lighting onto multiple physical strips.
+ *
+ * @param controller the FastLEDController controlling the LEDs
+ * @param channelIndex the index of the channel
+ * @param targetArray the external CRGB array you want to mirror the colors to
+ * @param targetLength the number of LEDs in the targetArray
+ */
+void mirrorChannel(FastLEDController* controller, uint8_t channelIndex, CRGB* targetArray, uint8_t targetLength);
+
+/**
  * Define the scaling information for a segment of a channel. A segment is a part of a channel that can be scale
  * independently of other segments.
  */

@@ -103,6 +103,16 @@ void CLP::repeat(FastLEDController* controller, uint8_t channelIndex, uint8_t ti
 	}
 }
 
+void CLP::mirrorChannel(FastLEDController* controller, uint8_t channelIndex, CRGB* targetArray, uint8_t targetLength) {
+	auto leds = controller->getLEDs(channelIndex);
+	auto count = controller->getLEDCount(channelIndex);
+	if (leds == nullptr || count == 0 || targetArray == nullptr || targetLength == 0) {
+		return;
+	}
+	uint8_t copyCount = min((uint8_t)count, targetLength);
+	memcpy(targetArray, leds, sizeof(CRGB) * copyCount);
+}
+
 void CLP::scaleSegments(FastLEDController* controller, uint8_t channelIndex, const SegmentScaling* const segments,
 						int segmentsCount) {
 	auto leds = controller->getLEDs(channelIndex);

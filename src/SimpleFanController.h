@@ -63,6 +63,16 @@ public:
 	 */
 	void update();
 
+	virtual void handleFanControl(const Command& command, const CorsairLightingProtocolResponse* response) override;
+	/**
+	 * Set a FanCurve to be used automatically when the controller loses connection to iCUE (offline/standby mode).
+	 *
+	 * @param fan index of the fan
+	 * @param fanCurve the fan curve data
+	 * @param group the temperature group used for getting the temperature for this fan
+	 */
+	void setStandbyFanCurve(uint8_t fan, FanCurve& fanCurve, uint8_t group);
+
 protected:
 	virtual uint16_t getFanSpeed(uint8_t fan) override;
 	virtual void setFanSpeed(uint8_t fan, uint16_t speed) override;
@@ -88,4 +98,8 @@ protected:
 	 */
 	bool triggerSave = false;
 	unsigned long lastUpdate = 0;
+	unsigned long lastFanCommand = 0;
+	FanCurve standbyFanCurves[FAN_NUM];
+	uint8_t standbyTempGroups[FAN_NUM];
+	bool standbyEnabled[FAN_NUM] = {false};
 };

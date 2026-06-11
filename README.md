@@ -153,7 +153,9 @@ Now you can create custom lighting effects in the **Lighting Channel #** tabs.
 - [API Documentation](https://masterji27.github.io/CorsairLightingProtocol/)
 - [How it works](#how-it-works)
 - [Use of multiple devices](#use-of-multiple-devices)
+- [Dynamic Device Emulation Switching (TinyUSB)](#dynamic-device-emulation-switching-tinyusb)
 - [Create a Commander PRO (Fans & Temperature)](#create-a-commander-pro-fans-temperature)
+- [Offline Standby Fan Curve (Standalone Cooling)](#offline-standby-fan-curve-standalone-cooling)
 - [Callback Temperature & Voltage Controller](#callback-temperature--voltage-controller)
 - [Connect Multiple Fans without a Corsair RGB Fan Hub](#connect-multiple-fans-without-a-corsair-rgb-fan-hub)
 - [Control Non-Addressable (Analog) RGB Strips](#control-non-addressable-analog-rgb-strips)
@@ -165,6 +167,7 @@ Now you can create custom lighting effects in the **Lighting Channel #** tabs.
 - [Disabling EEPROM (Wear Prevention)](#disabling-eeprom-wear-prevention)
 - [Using HoodLoader2 (Arduino Uno & Mega)](#using-hoodloader2-arduino-uno--mega)
 - [Repeat or scale LED channels](#repeat-or-scale-led-channels)
+- [Channel Mirroring and Segment Splitting](#channel-mirroring-and-segment-splitting)
 - [Increase the Brightness of the LEDs](#increase-the-brightness-of-the-leds)
 - [Reverse direction of LED Strip](#reverse-direction-of-led-strip)
 - [Power Limiting (FastLED Safety)](#power-limiting-fastled-safety)
@@ -205,6 +208,24 @@ The `DeviceID` can be changed with the [DeviceIDTool](examples/DeviceIDTool/Devi
 Upload the DeviceIDTool sketch and then open the Serial monitor with baudrate 115200.
 The tool displays the current DeviceID, you can type in a new DeviceID that is saved on the Arduino.
 After that, you can upload another sketch.
+
+## Dynamic Device Emulation Switching (TinyUSB)
+By default, the emulated Corsair product (e.g. Commander PRO, Lighting Node PRO) is set at compile time in the constructor of `CorsairLightingFirmware`. 
+However, if you are using a **TinyUSB** supported board (like the Raspberry Pi Pico or SAMD), you can dynamically switch the emulated device at runtime *before* the USB descriptors are initialized. This is not possible on AVR boards (like Leonardo/Pro Micro) where USB descriptors are baked into the core/bootloader.
+
+This allows you to select the device type using a physical jumper switch:
+```C++
+CorsairLightingFirmwareStorageEEPROM firmwareStorage;
+CorsairLightingFirmware firmware(CORSAIR_LIGHTING_NODE_PRO, &firmwareStorage);
+
+void setup() {
+    pinMode(4, INPUT_PULLUP);
+    if (digitalRead(4) == LOW) {
+        firmware.setProduct(CORSAIR_COMMANDER_PRO);
+    }
+    cHID.setup();
+}
+```
 
 ## Create a Commander PRO (Fans & Temperature)
 The library can emulate a **Corsair Commander PRO**, allowing you to control PWM PC fans and read analog temperature sensors (thermistors) directly inside iCUE.
@@ -269,6 +290,23 @@ void loop() {
 
 > [!TIP]
 > Standard NTC 10k Ohm thermistors are ideal for monitoring liquid, intake, or ambient temperatures. Place them in your cooling loop or case, register them in your code, and customize fan speeds inside iCUE based on these readings.
+
+## Offline Standby Fan Curve (Standalone Cooling)
+When your PC enters sleep mode, reboots, or runs an OS without iCUE installed, the USB connection is lost. Under normal circumstances, emulated fans maintain their last known speed indefinitely. You can now define a standalone "Standby Fan Curve" that automatically takes over when the Arduino hasn't received a command from iCUE for 30 seconds.
+
+```C++
+void setup() {
+    // 1. Create a fallback curve (Temp -> RPM)
+    FanCurve offlineCurve;
+    offlineCurve.temperatures[0] = 3000; offlineCurve.rpms[0] = 800; // 30°C -> 800 RPM
+    offlineCurve.temperatures[1] = 4000; offlineCurve.rpms[1] = 1200; // 40°C -> 1200 RPM
+    // ... fill all 6 curve points
+
+    // 2. Assign it to Fan 0, listening to Temperature Sensor 0
+    fanController.setStandbyFanCurve(0, offlineCurve, 0);
+}
+```
+In `loop()`, simply call `fanController.updateFans()` and it will seamlessly transition to your standby curve when iCUE goes offline, keeping your system cool.
 
 ## Callback Temperature & Voltage Controller
 If you want to read digital sensors (such as DS18B20 or DHT22), check the internal temperature of your Arduino/Pico chip, or measure the live USB power supply voltage, you can use the `CallbackTemperatureController`. This class allows you to register custom lambdas or functions that return the values directly to iCUE.
@@ -594,6 +632,42 @@ Then the third argument of the `scale` function is `144`.
 
 For both functions it's **important**, that the CRGB arrays have at least the length of the physical LED strip.
 This means if your LED channel from iCUE has 50 LEDs and you use the `repeat` function to control 100 physical LEDs you MUST declare the CRGB array at least with a length of 100.
+
+## Channel Mirroring and Segment Splitting
+If you want to duplicate the lighting of one iCUE channel onto multiple physically separate strips, you can use `CLP::mirrorChannel`. This perfectly clones the rendered animation.
+
+```C++
+CRGB physicalStrip1[60];
+CRGB physicalStrip2[60]; // Secondary strip to act as a mirror
+
+void setup() {
+    FastLED.addLeds<WS2812B, 2, GRB>(physicalStrip1, 60);
+    FastLED.addLeds<WS2812B, 3, GRB>(physicalStrip2, 60);
+    
+    // Tell the library to only render iCUE data to Strip 1
+    ledController.addLEDs(0, physicalStrip1, 60);
+
+    // In the update hook, mirror Strip 1 to Strip 2
+    ledController.onUpdateHook(0, []() {
+        CLP::mirrorChannel(&ledController, 0, physicalStrip2, 60);
+    });
+}
+```
+
+**Segment Splitting (Native FastLED feature):**
+If you want to split a single 60-LED iCUE channel across two physical 30-LED Arduino pins, you don't need a special CLP utility. You can use FastLED's native pointer offsets:
+```C++
+CRGB ledsChannel1[60]; // The full 60-LED virtual channel for iCUE
+
+void setup() {
+    // Pin 2 handles the first 30 LEDs (index 0)
+    FastLED.addLeds<WS2812B, 2, GRB>(ledsChannel1, 30);
+    // Pin 3 handles the next 30 LEDs (offset pointer by +30)
+    FastLED.addLeds<WS2812B, 3, GRB>(ledsChannel1 + 30, 30);
+
+    ledController.addLEDs(0, ledsChannel1, 60);
+}
+```
 
 ## Increase the Brightness of the LEDs
 When using LS100 or LT100 iCUE only uses 50% of the LEDs brightness even if you set the brightness to max in the iCUE Device Settings.
