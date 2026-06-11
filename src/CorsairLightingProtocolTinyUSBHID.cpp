@@ -15,7 +15,6 @@
 */
 #include "CorsairLightingProtocolTinyUSBHID.h"
 
-
 #if defined(USE_TINYUSB)
 
 const char* corsairProducts[] = {CORSAIR_LNP_PRODUCT, CORSAIR_CP_PRODUCT,  CORSAIR_LNC_PRODUCT,
