@@ -156,6 +156,9 @@ Now you can create custom lighting effects in the **Lighting Channel #** tabs.
 - [Create a Commander PRO (Fans & Temperature)](#create-a-commander-pro-fans-temperature)
 - [Connect Multiple Fans without a Corsair RGB Fan Hub](#connect-multiple-fans-without-a-corsair-rgb-fan-hub)
 - [Control Non-Addressable (Analog) RGB Strips](#control-non-addressable-analog-rgb-strips)
+- [Ambient Backlighting (LS100/LT100 Emulation)](#ambient-backlighting-ls100lt100-emulation)
+- [Disabling EEPROM (Wear Prevention)](#disabling-eeprom-wear-prevention)
+- [Using HoodLoader2 (Arduino Uno & Mega)](#using-hoodloader2-arduino-uno--mega)
 - [Repeat or scale LED channels](#repeat-or-scale-led-channels)
 - [Increase the Brightness of the LEDs](#increase-the-brightness-of-the-leds)
 - [Reverse direction of LED Strip](#reverse-direction-of-led-strip)
@@ -315,6 +318,113 @@ void setup() {
 }
 ```
 
+## Ambient Backlighting (LS100/LT100 Emulation)
+You can configure the library to emulate a **Corsair Smart Lighting Controller** (LS100/LT100). This is particularly useful for monitor backlighting or ambient lighting setups that sync dynamically with screen colors inside iCUE.
+
+Example setup based on [AmbientBacklight.ino](examples/AmbientBacklight/AmbientBacklight.ino):
+
+```C++
+#include <CorsairLightingProtocol.h>
+#include <FastLED.h>
+
+#define DATA_PIN_CHANNEL_1 2
+#define DATA_PIN_CHANNEL_2 3
+
+CRGB ledsChannel1[84];
+CRGB ledsChannel2[105];
+
+CorsairLightingFirmwareStorageEEPROM firmwareStorage;
+// Emulate LS100/LT100 Smart Lighting Controller
+CorsairLightingFirmware firmware(CORSAIR_SMART_LIGHTING_CONTROLLER, &firmwareStorage);
+
+FastLEDControllerStorageEEPROM storage;
+FastLEDController ledController(&storage);
+CorsairLightingProtocolController cLP(&ledController, &firmware);
+CorsairLightingProtocolHID cHID(&cLP);
+
+void setup() {
+    FastLED.addLeds<WS2812B, DATA_PIN_CHANNEL_1, GRB>(ledsChannel1, 84);
+    FastLED.addLeds<WS2812B, DATA_PIN_CHANNEL_2, GRB>(ledsChannel2, 105);
+    ledController.addLEDs(0, ledsChannel1, 84);
+    ledController.addLEDs(1, ledsChannel2, 105);
+
+    // Apply optimizations in the update hook:
+    ledController.onUpdateHook(0, []() {
+        // 1. Fix the iCUE 50% brightness limitation for ambient lighting
+        CLP::fixIcueBrightness(&ledController, 0);
+        // 2. Apply gamma correction for accurate screen-to-LED color matching
+        CLP::gammaCorrection(&ledController, 0);
+    });
+}
+
+void loop() {
+    cHID.update();
+    if (ledController.updateLEDs()) {
+        FastLED.show();
+    }
+}
+```
+
+> [!NOTE]
+> Under LS100/LT100, iCUE restricts the LED brightness to a maximum of 50% for eye safety. The `CLP::fixIcueBrightness` utility scales the output back to 100% so you can utilize your LEDs' full brightness.
+
+## Disabling EEPROM (Wear Prevention)
+By default, the library stores active lighting profiles and custom device IDs inside the Arduino's non-volatile EEPROM. If you want to prevent EEPROM write wear or are running on a board that lacks native EEPROM (like the Raspberry Pi Pico), you can configure the library to use static in-memory storage.
+
+Example setup based on [NoEEPROM.ino](examples/NoEEPROM/NoEEPROM.ino):
+
+```C++
+#include <CorsairLightingProtocol.h>
+#include <FastLED.h>
+
+#define DATA_PIN_CHANNEL_1 2
+
+CRGB ledsChannel1[96];
+
+// Use static firmware storage instead of EEPROM storage
+DeviceID deviceID = {0x9A, 0xDA, 0xA7, 0x8E};
+CorsairLightingFirmwareStorageStatic firmwareStorage(deviceID);
+CorsairLightingFirmware firmware(CORSAIR_LIGHTING_NODE_PRO, &firmwareStorage);
+
+// Pass nullptr to FastLEDController to disable EEPROM profile saving
+FastLEDController ledController(nullptr);
+CorsairLightingProtocolController cLP(&ledController, &firmware);
+CorsairLightingProtocolHID cHID(&cLP);
+
+void setup() {
+    FastLED.addLeds<WS2812B, DATA_PIN_CHANNEL_1, GRB>(ledsChannel1, 96);
+    ledController.addLEDs(0, ledsChannel1, 96);
+}
+
+void loop() {
+    cHID.update();
+    if (ledController.updateLEDs()) {
+        FastLED.show();
+    }
+}
+```
+
+## Using HoodLoader2 (Arduino Uno & Mega)
+Because the **Arduino Uno** and **Arduino Mega** do not use an ATmega32U4 as their main processor, they cannot natively act as USB HID devices. However, you can still use them with this library by taking advantage of the secondary **ATmega16U2** (or ATmega8U2) chip on the board.
+
+This requires flashing the ATmega16U2 with the **HoodLoader2** bootloader.
+
+### System Architecture:
+1. **ATmega16U2 (USB Bridge)**: Runs the [HoodLoader2CLPBridge.ino](examples/HoodLoader2CLPBridge/HoodLoader2CLPBridge.ino) sketch. It acts as the USB HID device for iCUE, captures USB lighting packets, and forwards them over Serial to the main MCU.
+2. **ATmega328P / ATmega2560 (Main Controller)**: Runs the [HoodLoader2UnoMegaController.ino](examples/HoodLoader2UnoMegaController/HoodLoader2UnoMegaController.ino) sketch. It reads lighting data from Serial and drives the physical LED strips.
+
+```
++------------+       USB       +---------------+       Serial      +------------------+
+|     PC     | --------------> |  ATmega16U2   | ----------------> | ATmega328P/2560  |
+|  (iCUE)    |                 | (USB Bridge)  | (Pins 0/1 Rx/Tx)  | (LED Driver)     |
++------------+                 +---------------+                   +------------------+
+                                                                            |
+                                                                            v
+                                                                     Addressable LEDs
+```
+
+> [!IMPORTANT]
+> Refer to the [HoodLoader2 Wiki Guide](https://github.com/MasterJi27/CorsairLightingProtocol/wiki/How-to-use-on-Arduino-Uno-and-Arduino-Mega) for step-by-step instructions on flashing the ATmega16U2 bootloader.
 
 ## Repeat or scale LED channels
 You can repeat or scale LED channel controlled by iCUE onto physical LED strips.
