@@ -30,8 +30,8 @@ public:
 	 */
 	PWMFan(uint8_t pwmPin, uint8_t tachoPin = 0, uint16_t minRPM = 0, uint16_t maxRPM = 2000);
 	virtual void setPower(uint8_t percentage);
-	virtual uint8_t calculatePowerFromSpeed(uint16_t rpm);
-	virtual uint16_t calculateSpeedFromPower(uint8_t power);
+	virtual uint8_t calculatePowerFromSpeed(uint16_t rpm) const;
+	virtual uint16_t calculateSpeedFromPower(uint8_t power) const;
 
 	uint16_t getSpeed() const;
 	void updateTacho();

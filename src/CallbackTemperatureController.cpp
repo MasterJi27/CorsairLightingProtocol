@@ -42,7 +42,8 @@ uint16_t CallbackTemperatureController::readInternalChipTemperature() {
 	delay(2);
 
 	ADCSRA |= _BV(ADSC);  // Start conversion
-	while (bit_is_set(ADCSRA, ADSC));
+	while (bit_is_set(ADCSRA, ADSC))
+		;
 
 	uint8_t low = ADCL;
 	uint8_t high = ADCH;
@@ -78,7 +79,8 @@ uint16_t CallbackTemperatureController::readInternalVcc() {
 	delay(2);
 
 	ADCSRA |= _BV(ADSC);  // Start conversion
-	while (bit_is_set(ADCSRA, ADSC));
+	while (bit_is_set(ADCSRA, ADSC))
+		;
 
 	uint8_t low = ADCL;
 	uint8_t high = ADCH;

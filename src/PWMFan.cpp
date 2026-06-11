@@ -30,6 +30,7 @@ PWMFan::PWMFan(uint8_t pwmPin, uint8_t tachoPin, uint16_t minRPM, uint16_t maxRP
 		pinMode(tachoPin, INPUT_PULLUP);
 	}
 
+#if defined(ARDUINO_ARCH_AVR)
 	switch (digitalPinToTimer(pwmPin)) {
 		case TIMER0B: /* 3 */
 #ifdef DEBUG
@@ -63,6 +64,7 @@ PWMFan::PWMFan(uint8_t pwmPin, uint8_t tachoPin, uint16_t minRPM, uint16_t maxRP
 #endif  // DEBUG
 			break;
 	}
+#endif
 }
 
 void PWMFan::setPower(uint8_t percentage) {
@@ -70,12 +72,12 @@ void PWMFan::setPower(uint8_t percentage) {
 	currentPower = percentage;
 }
 
-uint8_t PWMFan::calculatePowerFromSpeed(uint16_t rpm) {
+uint8_t PWMFan::calculatePowerFromSpeed(uint16_t rpm) const {
 	rpm = constrain(rpm, minRPM, maxRPM);
 	return ((float)(rpm - minRPM) / (float)(maxRPM - minRPM)) * 255;
 }
 
-uint16_t PWMFan::calculateSpeedFromPower(uint8_t power) { return map(power, 0, 255, minRPM, maxRPM); }
+uint16_t PWMFan::calculateSpeedFromPower(uint8_t power) const { return map(power, 0, 255, minRPM, maxRPM); }
 
 uint16_t PWMFan::getSpeed() const {
 	if (tachoPin == 0) {

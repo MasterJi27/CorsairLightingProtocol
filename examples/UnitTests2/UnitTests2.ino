@@ -128,7 +128,8 @@ test(animation_step_count_long) {
 void setup() {
 	delay(1000);
 	Serial.begin(115200);
-	while (!Serial);
+	while (!Serial)
+		;
 }
 
 void loop() {

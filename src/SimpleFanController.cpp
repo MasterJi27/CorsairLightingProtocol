@@ -15,7 +15,9 @@
 */
 #include "SimpleFanController.h"
 
+#if defined(ARDUINO_ARCH_AVR)
 #include <EEPROM.h>
+#endif
 
 SimpleFanController::SimpleFanController(TemperatureController* temperatureController, uint16_t updateRate,
 										 uint16_t eEPROMAdress)
@@ -170,7 +172,9 @@ void SimpleFanController::setFanDetectionType(uint8_t fan, FanDetectionType type
 }
 
 bool SimpleFanController::load() {
+#if defined(ARDUINO_ARCH_AVR)
 	EEPROM.get(eEPROMAdress, fanData);
+#endif
 	return true;
 }
 
@@ -178,6 +182,8 @@ bool SimpleFanController::save() {
 #ifdef DEBUG
 	Serial.println(F("Save fan data to EEPROM."));
 #endif
+#if defined(ARDUINO_ARCH_AVR)
 	EEPROM.put(eEPROMAdress, fanData);
+#endif
 	return true;
 }
