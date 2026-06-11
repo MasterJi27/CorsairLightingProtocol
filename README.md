@@ -162,7 +162,9 @@ Now you can create custom lighting effects in the **Lighting Channel #** tabs.
 - [Repeat or scale LED channels](#repeat-or-scale-led-channels)
 - [Increase the Brightness of the LEDs](#increase-the-brightness-of-the-leds)
 - [Reverse direction of LED Strip](#reverse-direction-of-led-strip)
+- [Power Limiting (FastLED Safety)](#power-limiting-fastled-safety)
 - [Hardware Lighting mode](#hardware-lighting-mode)
+- [Troubleshooting & FAQ](#troubleshooting--faq)
 
 ## How it works
 This library uses the USB HID interface of the ATmega32U4.
@@ -462,12 +464,61 @@ ledController.onUpdateHook(0, []() {
 	CLP::reverse(&ledController, 0);
 });
 ```
+## Power Limiting (FastLED Safety)
+If you are powering your addressable LEDs directly from your PC's USB port (not recommended for long strips), you must ensure that the total current draw does not exceed the USB port limit (typically 500mA for USB 2.0, or 900mA for USB 3.0). Drawing too much current will trigger your PC's USB overcurrent protection or damage the motherboard.
+
+To protect your system, utilize FastLED's built-in power-limiting function inside the `setup()` function:
+
+```C++
+void setup() {
+    // Limit power draw to 5 Volts and 900 Milliamps (suitable for USB 3.0 ports)
+    FastLED.setMaxPowerInVoltsAndMilliamps(5, 900);
+    
+    FastLED.addLeds<WS2812B, DATA_PIN_CHANNEL_1, GRB>(ledsChannel1, 60);
+    ledController.addLEDs(0, ledsChannel1, 60);
+}
+```
+
 ## Hardware Lighting mode
-The [Hardware Lighting mode](https://forum.corsair.com/v3/showthread.php?t=182874) can be configured in iCUE.
-It allows you the set lighting effects that will be active when iCUE **is not** running.
-This is the case when the PC is off, in sleep mode, booting or the user is logged out.
-So if you want to have lighting effects in all these situations, use the Hardware Lighting mode.
-If you don't want it, configure a static black color.
+The [Hardware Lighting mode](https://forum.corsair.com/v3/showthread.php?t=182874) can be configured in iCUE. It allows you to define custom lighting profiles that are saved directly to the device and execute when iCUE is not running (e.g. while booting, in sleep mode, or when logged out).
+
+If you want to run a custom fallback animation (defined in your Arduino code) instead of iCUE's hardware profiles, you can set a default animation loop that plays when the HID USB connection is inactive.
+
+Example implementation:
+```C++
+void loop() {
+    cHID.update();
+
+    if (ledController.updateLEDs()) {
+        FastLED.show();
+    } else if (!cHID.isActive()) {
+        // Run offline fallback animation (e.g. rainbow wave) when iCUE is closed/disconnected
+        fill_rainbow(ledsChannel1, 60, millis() / 20, 5);
+        FastLED.show();
+    }
+}
+```
+
+## Troubleshooting & FAQ
+
+#### Q: My LEDs are displaying incorrect colors (e.g., Red instead of Blue).
+**A:** This is caused by mismatched color orders. Addressable LEDs use different layouts (GRB, RGB, BRG, etc.). Change the color order in your `FastLED.addLeds` declaration to match your strip:
+```C++
+// Change 'GRB' to 'RGB' or 'BRG'
+FastLED.addLeds<WS2812B, DATA_PIN, RGB>(leds, LED_COUNT);
+```
+
+#### Q: The LEDs are flickering or showing random flashes.
+**A:** Ensure that:
+1. The **Ground (GND)** of the external power supply and the Arduino are connected together to form a common ground.
+2. The data line has a $220\Omega$–$470\Omega$ resistor between the Arduino pin and the first LED to absorb signal reflections.
+3. The data wire length between the Arduino and the first LED is kept as short as possible.
+
+#### Q: iCUE displays "Lighting Node PRO" but LEDs are not turning on.
+**A:** Ensure that:
+1. The LED strip has proper external 5V power.
+2. You have configured the channels in iCUE under **Lighting Setup** (e.g., set to "RGB Light Strip" and configured the correct amount of strips).
+3. The data pin in your code matches the physical pin on the Arduino.
 
 # License
 This project is licensed under the Apache 2.0 License.
